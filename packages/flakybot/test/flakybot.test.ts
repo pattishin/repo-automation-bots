@@ -49,7 +49,7 @@ function buildPayload(inputFixture: string, repo: string) {
     organization: {login: 'GoogleCloudPlatform'},
     repository: {name: repo},
     commit: '123',
-buildURL: 'http://example.com',
+    buildURL: 'http://example.com',
     xunitXML: Buffer.from(input).toString('base64'),
   };
 }
@@ -58,7 +58,7 @@ function nockIssues(repo: string, issues: Array<{}> = []) {
   return nock('https://api.github.com')
     .get(
       `/repos/GoogleCloudPlatform/${repo}/issues?per_page=100&labels=flakybot%3A%20issue&state=all`
-)
+    )
     .reply(200, issues);
 }
 
@@ -109,7 +109,7 @@ function nockIssuePatch(repo: string, issueNumber: number) {
 }
 
 function nockRepo(repo: string, archived: boolean) {
-return nock('https://api.github.com')
+  return nock('https://api.github.com')
     .get(`/repos/GoogleCloudPlatform/${repo}`)
     .reply(200, {
       archived,
