@@ -39,9 +39,12 @@ import schema from './config-schema.json';
 import {ISSUE_LABEL, FLAKY_LABEL, QUIET_LABEL, FLAKYBOT_LABELS} from './labels';
 
 export interface Config {
-  issuePriority: string;
+  issuePriority: string,
+  minIssuesToGroup: number,
+  reopenLockedIssue: boolean,
+  issueHistory: number;
 }
-export const DEFAULT_CONFIG: Config = {issuePriority: 'p1'};
+export const DEFAULT_CONFIG: Config = {issuePriority: 'p1', minIssuesToGroup: 2, reopenLockedIssue: true, issueHistory: 365};
 export const CONFIG_FILENAME = 'flakybot.yaml';
 
 type IssuesListForRepoResponseItem = components['schemas']['issue'];
@@ -383,7 +386,7 @@ flakybot.openIssues = async (
   buildURL: string,
   logger: GCFLogger
 ) => {
-  // Group by package to see if there are any packages with 10+ failures.
+  // Group by package to see if there are any packages with 1+ failures.
   const byPackage = new Map<string, TestCase[]>();
   for (const failure of failures) {
     const pkg = failure.package || 'all';
@@ -453,8 +456,8 @@ flakybot.openIssues = async (
       }
     }
     // There is no grouped issue for this package.
-    // Check if 10 or more tests failed.
-    if (pkgFailures.length >= 10) {
+    // Check if 1 or more tests failed.
+    if (pkgFailures.length >= config.minIssuesToGroup) {
       // Open a new issue listing the failing tests.
       const testCase = flakybot.groupedTestCase(pkg);
       logger.info(
@@ -492,7 +495,7 @@ flakybot.openIssues = async (
       logger.info(`[${owner}/${repo}]: created issue #${newIssue.number}`);
       continue;
     }
-    // There is no grouped failure and there are <10 failing tests in this
+    // There is no grouped failure and there are <=1 failing tests in this
     // package. Treat each failure independently.
     for (const failure of pkgFailures) {
       const existingIssue = flakybot.findExistingIssue(issues, failure);
@@ -532,27 +535,48 @@ flakybot.openIssues = async (
 
           // If the issue is locked, we can't reopen it, so open a new one.
           if (existingIssueToModify.locked) {
-            await flakybot.openNewIssue(
-              context,
-              config,
-              owner,
-              repo,
-              commit,
-              buildURL,
-              failure,
-              logger,
-              `Note: #${existingIssueToModify.number} was also for this test, but it is locked`
-            );
-            continue;
+            if (config.reopenLockedIssue === false) {
+              await flakybot.openNewIssue(
+                context,
+                config,
+                owner,
+                repo,
+                commit,
+                buildURL,
+                failure,
+                logger,
+                `Note: #${existingIssueToModify.number} was also for this test, but it is locked`
+              );
+              continue;
+            }
+            else {
+              // Delete the issue lock.
+              await context.octokit.issues.unlock({
+                owner: `${owner}`,
+                repo: `${repo}`,
+                issue_number: existingIssueToModify.number
+              });
+              // Reopen the issue by marking it flaky.
+              const reason = flakybot.formatBody(failure, commit, buildURL);
+              await flakybot.markIssueFlaky(
+                existingIssueToModify,
+                context,
+                config,
+                owner,
+                repo,
+                reason,
+                logger
+              );
+            }
           }
 
-          // If the existing issue has been closed for more than 10 days, open
+          // If the existing issue has been closed for more than 365 days, open
           // a new issue instead.
           //
           // If this doesn't work, we'll mark the issue as flaky.
           const closedAt = parseClosedAt(existingIssueToModify.closed_at);
           if (closedAt) {
-            const daysAgo = 10;
+            const daysAgo = config.issueHistory;
             const daysAgoDate = new Date();
             daysAgoDate.setDate(daysAgoDate.getDate() - daysAgo);
             if (closedAt < daysAgoDate.getTime()) {
@@ -565,7 +589,7 @@ flakybot.openIssues = async (
                 buildURL,
                 failure,
                 logger,
-                `Note: #${existingIssueToModify.number} was also for this test, but it was closed more than ${daysAgo} days ago. So, I didn't mark it flaky.`
+                `Note: #${existingIssueToModify.number} was also for this test, but it was closed more than ${config.issueHistory} days ago. So, I didn't mark it flaky.`
               );
               continue;
             }
@@ -926,6 +950,12 @@ flakybot.formatBody = (
   const body = `commit: ${commit}
 buildURL: ${buildURL}
 status: ${testCase.passed ? 'passed' : 'failed'}`;
+  let statusCode;
+  if (testCase.log) {
+    statusCode = testCase.log.match("StatusCode.");
+    console.log(statusCode);
+    body += `\n<details><summary>Test output</summary><br><pre>${testCase.log}</pre></details>`;
+  }
   return body;
 };
 
