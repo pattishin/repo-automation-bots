@@ -11,12 +11,10 @@
 			<property name="go.version" value="go1.13.1"></property>
 		</properties>
 		<testcase classname="buckets" name="TestBucketLock" time="17.500">
-			<failure message="Failed" type="">main_test.go:234: failed to create bucket (&#34;golang-samples-tests-8-storage-buckets-tests&#34;): Post https://storage.googleapis.com/storage/v1/b?alt=json&amp;prettyPrint=false&amp;project=golang-samples-tests-8: read tcp 10.142.0.112:33618-&gt;108.177.12.128:443: read: connection reset by peer</failure>
 		</testcase>
 	</testsuite>
     <testsuite tests="1" failures="1" time="0.526" name="github.com/GoogleCloudPlatform/golang-samples/securitycenter/notifications">
 		<testcase classname="notifications" name="TestGetNotificationConfig" time="0.000">
-			<failure message="Failed" type="">main_test.go:234: failed to create notifications read: connection reset by peer</failure>
 		</testcase>
 	</testsuite>
 	<testsuite tests="1" failures="0" time="3.817" name="github.com/GoogleCloudPlatform/golang-samples/storage/gcsupload">

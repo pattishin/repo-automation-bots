@@ -272,3 +272,7 @@ exports['flakybot app xunitXML Grouped issues closes group issues when all tests
 exports['flakybot app xunitXML Grouped issues closes group issues when all tests pass 4'] = {
   "state": "closed"
 }
+
+exports['flakybot app xunitXML Grouped issues narrows the amount of issues created with updated config 1'] = {
+  "body": "commit: 123\nbuildURL: http://example.com\nstatus: failed"
+}

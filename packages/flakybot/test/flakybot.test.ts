@@ -805,7 +805,7 @@ describe('flakybot', () => {
         nockRepo('golang-samples', false);
         getConfigWithDefaultStub.resolves(DEFAULT_CONFIG);
         const payload = buildPayload(
-          'many_failed_diff_pkg.xml',
+          'many_failed_same_pkg.xml',
           'golang-samples'
         );
         const issues = [
@@ -858,7 +858,7 @@ describe('flakybot', () => {
         nockRepo('golang-samples', false);
         getConfigWithDefaultStub.resolves(DEFAULT_CONFIG);
         const payload = buildPayload(
-          'many_failed_diff_pkg.xml',
+          'many_failed_same_pkg.xml',
           'golang-samples'
         );
 
@@ -1268,7 +1268,7 @@ describe('flakybot', () => {
         nockRepo('golang-samples', false);
         getConfigWithDefaultStub.resolves(DEFAULT_CONFIG);
         const payload = buildPayload(
-          'many_failed_diff_pkg.xml',
+          'many_failed_same_pkg.xml',
           'golang-samples'
         );
         const issues = [
@@ -1651,6 +1651,71 @@ describe('flakybot', () => {
             nockIssueComment('nodejs-spanner', 10),
             nockGetIssueComments('nodejs-spanner', 10),
             nockIssuePatch('nodejs-spanner', 10),
+          ];
+
+          await probot.receive({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            name: 'pubsub.message' as any,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            payload: payload as any,
+            id: 'abc123',
+          });
+
+          scopes.forEach(s => s.done());
+        });
+
+        // Flakybot config extension tests
+        it('narrows the amount of issues created with mocked extended config', async () => {
+          // Mock out if config was extended
+          const mockExtendedConfig = {
+            issuePriority: 'p1',
+            minIssuesToGroup: 2,
+            reopenLockedIssue: true,
+            issueHistory: 365,
+          };
+          nockRepo('golang-samples', false);
+          getConfigWithDefaultStub.resolves(mockExtendedConfig);
+
+          // Build expected payload with updated extended config
+          const payload = buildPayload(
+            'many_failed_diff_pkg.xml',
+            'golang-samples'
+          );
+
+          const issues = [
+            {
+              title: formatTestCase({
+                package:
+                  'github.com/GoogleCloudPlatform/golang-samples/storage/buckets',
+                testCase: 'TestBucketLock',
+                passed: false,
+              }),
+              number: 16,
+              body: 'Failure!',
+              labels: [{name: 'flakybot: flaky'}],
+              state: 'open',
+              url: 'url',
+            },
+            {
+              title: formatTestCase({
+                package:
+                  'github.com/GoogleCloudPlatform/golang-samples/storage/buckets',
+                testCase: 'TestUniformBucketLevelAccess',
+                passed: false,
+              }),
+              number: 17,
+              body: 'Failure!',
+              state: 'open',
+              url: 'url',
+            },
+          ];
+
+          const scopes = [
+            nockIssues('golang-samples', issues),
+            nockGetIssue('golang-samples', 16, issues[0]),
+            nockGetIssue('golang-samples', 17, issues[1]),
+            nockGetIssueComments('golang-samples', 17),
+            nockIssueComment('golang-samples', 17),
           ];
 
           await probot.receive({

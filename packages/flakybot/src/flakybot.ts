@@ -39,12 +39,18 @@ import schema from './config-schema.json';
 import {ISSUE_LABEL, FLAKY_LABEL, QUIET_LABEL, FLAKYBOT_LABELS} from './labels';
 
 export interface Config {
-  issuePriority: string,
-  minIssuesToGroup: number,
-  reopenLockedIssue: boolean,
+  issuePriority: string;
+  minIssuesToGroup: number;
+  reopenLockedIssue: boolean;
   issueHistory: number;
 }
-export const DEFAULT_CONFIG: Config = {issuePriority: 'p1', minIssuesToGroup: 2, reopenLockedIssue: true, issueHistory: 365};
+
+export const DEFAULT_CONFIG: Config = {
+  issuePriority: 'p1',
+  minIssuesToGroup: 10,
+  reopenLockedIssue: false,
+  issueHistory: 10,
+};
 export const CONFIG_FILENAME = 'flakybot.yaml';
 
 type IssuesListForRepoResponseItem = components['schemas']['issue'];
@@ -122,6 +128,7 @@ interface TestCase {
   package?: string;
   testCase?: string;
   passed: boolean;
+  log?: string;
 }
 
 interface TestResults {
@@ -386,7 +393,7 @@ flakybot.openIssues = async (
   buildURL: string,
   logger: GCFLogger
 ) => {
-  // Group by package to see if there are any packages with 1+ failures.
+  // Group by package to see if there are any packages with default 10 (config.minIssuesToGroup) or more failures.
   const byPackage = new Map<string, TestCase[]>();
   for (const failure of failures) {
     const pkg = failure.package || 'all';
@@ -495,7 +502,7 @@ flakybot.openIssues = async (
       logger.info(`[${owner}/${repo}]: created issue #${newIssue.number}`);
       continue;
     }
-    // There is no grouped failure and there are <=1 failing tests in this
+    // There is no grouped failure and there are <= default 10 (config.minIssuesToGroup) failing tests in this
     // package. Treat each failure independently.
     for (const failure of pkgFailures) {
       const existingIssue = flakybot.findExistingIssue(issues, failure);
@@ -548,13 +555,12 @@ flakybot.openIssues = async (
                 `Note: #${existingIssueToModify.number} was also for this test, but it is locked`
               );
               continue;
-            }
-            else {
+            } else {
               // Delete the issue lock.
               await context.octokit.issues.unlock({
                 owner: `${owner}`,
                 repo: `${repo}`,
-                issue_number: existingIssueToModify.number
+                issue_number: existingIssueToModify.number,
               });
               // Reopen the issue by marking it flaky.
               const reason = flakybot.formatBody(failure, commit, buildURL);
@@ -570,7 +576,7 @@ flakybot.openIssues = async (
             }
           }
 
-          // If the existing issue has been closed for more than 365 days, open
+          // If the existing issue has been closed for more than default 10 (config.issueHistory) days, open
           // a new issue instead.
           //
           // If this doesn't work, we'll mark the issue as flaky.
@@ -945,17 +951,16 @@ flakybot.formatBody = (
   commit: string,
   buildURL: string
 ): string => {
-  // Warning: this format is used to detect flaky tests. Don't make breaking
-  // changes.
-  const body = `commit: ${commit}
+  // Warning: this format is used to detect flaky tests. Don't make breaking changes.
+  let body = `commit: ${commit}
 buildURL: ${buildURL}
 status: ${testCase.passed ? 'passed' : 'failed'}`;
-  let statusCode;
-  if (testCase.log) {
-    statusCode = testCase.log.match("StatusCode.");
-    console.log(statusCode);
+
+  // Check if build logs exists and contains status code
+  if (testCase?.log?.match('StatusCode.')) {
     body += `\n<details><summary>Test output</summary><br><pre>${testCase.log}</pre></details>`;
   }
+
   return body;
 };
 
