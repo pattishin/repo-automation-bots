@@ -522,8 +522,9 @@ flakybot.openIssues = async (
       logger.info(
         `[${owner}/${repo}] existing issue #${existingIssue.number}: state: ${existingIssue.state}`
       );
+      
       // Acquire the lock, then fetch the issue and update, release the lock.
-      const lock = new DatastoreLock('flakybot', existingIssue.url);
+      const lock = new DatastoreLock('flakybot', existingIssue?.url);
       // Ignore the failure because it's not fatal.
       await lock.acquire();
 
@@ -534,6 +535,7 @@ flakybot.openIssues = async (
           repo: repo,
           issue_number: existingIssue.number,
         });
+
         // Work on the refreshed issue.
         const existingIssueToModify =
           issue.data as IssuesListForRepoResponseItem;

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="Mocha Tests" tests="64" failures="0" errors="24" skipped="0" timestamp="Thu, 11 Jun 2020 22:41:07 GMT" time="885.891">
+    <testcase classname="Spanner" name="single test issue added to group" time="3.578"><failure>testing 123</failure></testcase>
+</testsuite>

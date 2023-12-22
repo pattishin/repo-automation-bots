@@ -273,6 +273,12 @@ exports['flakybot app xunitXML Grouped issues closes group issues when all tests
   "state": "closed"
 }
 
-exports['flakybot app xunitXML Grouped issues narrows the amount of issues created with updated config 1'] = {
-  "body": "commit: 123\nbuildURL: http://example.com\nstatus: failed"
+exports['flakybot app xunitXML Grouped issues should change the number of issues per group if config.minIssuesToGroup has been defined. 1'] = {
+  "title": "Spanner: many tests failed",
+  "body": "Many tests failed at the same time in this package.\n\n* I will close this issue when there are no more failures in this package _and_\n  there is at least one pass.\n* No new issues will be filed for this package until this issue is closed.\n* If there are already issues for individual test cases, I will close them when\n  the corresponding test passes. You can close them earlier, if you prefer, and\n  I won't reopen them while this issue is still open.\n\nHere are the tests that failed:\n* single test issue added to group\n\n\n-----\ncommit: 123\nbuildURL: http://example.com\nstatus: failed",
+  "labels": [
+    "type: bug",
+    "priority: p1",
+    "flakybot: issue"
+  ]
 }

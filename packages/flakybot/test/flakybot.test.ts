@@ -1528,7 +1528,7 @@ describe('flakybot', () => {
         beforeEach(() => {
           nockRepo('nodejs-spanner', false);
         });
-
+        
         it('opens a single issue for many tests in the same package', async () => {
           getConfigWithDefaultStub.resolves(DEFAULT_CONFIG);
           const payload = buildPayload('node_group.xml', 'nodejs-spanner');
@@ -1663,59 +1663,34 @@ describe('flakybot', () => {
 
           scopes.forEach(s => s.done());
         });
-
-        // Flakybot config extension tests
-        it('narrows the amount of issues created with mocked extended config', async () => {
+        
+        // Config.minIssuesToGroup (need clarification)
+        // Minimize issues to a group in order to dedupe similar errors and reduce flakybot notifications
+        it('should change the number of issues per group if config.minIssuesToGroup has been defined.', async () => {
           // Mock out if config was extended
           const mockExtendedConfig = {
-            issuePriority: 'p1',
-            minIssuesToGroup: 2,
-            reopenLockedIssue: true,
-            issueHistory: 365,
+            ...DEFAULT_CONFIG,
+            minIssuesToGroup: 1
           };
-          nockRepo('golang-samples', false);
           getConfigWithDefaultStub.resolves(mockExtendedConfig);
+          const payload = buildPayload('node_group_test.xml', 'nodejs-spanner');
 
-          // Build expected payload with updated extended config
-          const payload = buildPayload(
-            'many_failed_diff_pkg.xml',
-            'golang-samples'
-          );
-
-          const issues = [
-            {
-              title: formatTestCase({
-                package:
-                  'github.com/GoogleCloudPlatform/golang-samples/storage/buckets',
-                testCase: 'TestBucketLock',
+          const issues = 
+            [{
+              title: flakybot.formatTestCase({
                 passed: false,
+                package: 'Spanner',
+                testCase: 'many tests failed'
               }),
-              number: 16,
-              body: 'Failure!',
-              labels: [{name: 'flakybot: flaky'}],
+              number: 1,
+              body: 'Failed',
               state: 'open',
               url: 'url',
-            },
-            {
-              title: formatTestCase({
-                package:
-                  'github.com/GoogleCloudPlatform/golang-samples/storage/buckets',
-                testCase: 'TestUniformBucketLevelAccess',
-                passed: false,
-              }),
-              number: 17,
-              body: 'Failure!',
-              state: 'open',
-              url: 'url',
-            },
-          ];
+            }];
 
           const scopes = [
-            nockIssues('golang-samples', issues),
-            nockGetIssue('golang-samples', 16, issues[0]),
-            nockGetIssue('golang-samples', 17, issues[1]),
-            nockGetIssueComments('golang-samples', 17),
-            nockIssueComment('golang-samples', 17),
+            nockIssues('nodejs-spanner', issues),
+            nockNewIssue('nodejs-spanner'),
           ];
 
           await probot.receive({
@@ -1727,6 +1702,36 @@ describe('flakybot', () => {
           });
 
           scopes.forEach(s => s.done());
+        });
+
+        // Config.reopenLockedIssue
+        // if reopen a locked issue is false, proceed with normal 
+        // behavior to create new issue. Else we reopen existing issue.
+        it('should reopen a previously locked issue if config.reopenLockedIssue is declared', () => {
+          // Mock out if config was extended
+          const mockExtendedConfig = {
+            ...DEFAULT_CONFIG,
+            reopenLockedIssue: true
+          };
+          getConfigWithDefaultStub.resolves(mockExtendedConfig);
+          const payload = buildPayload('node_group_test.xml', 'nodejs-spanner');
+        
+          // TODO: Fill out test 
+        });
+
+
+        // Config.issueHistory
+        // If issue is older than config.issueHistory, open new issue.
+        it('should open a new issue for any new closed existing issues older than what is defined in config.issueHistory', () => {
+          // Mock out if config was extended
+          const mockExtendedConfig = {
+            ...DEFAULT_CONFIG,
+            issueHistory: 365
+          };
+          getConfigWithDefaultStub.resolves(mockExtendedConfig);
+          const payload = buildPayload('node_group_test.xml', 'nodejs-spanner');
+        
+          // TODO: Fill out test 
         });
       });
     });
