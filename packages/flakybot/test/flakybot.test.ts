@@ -1814,8 +1814,8 @@ describe('flakybot', () => {
 
 
         // Config.issueHistory
-        // If issue is older than config.issueHistory, open new issue.
-        it('should open a new issue for any new closed existing issues older than what is defined in config.issueHistory', () => {
+        // If issue is less than config.issueHistory, do not open new issue.
+        it('should not open a new issue for any new closed existing issues older than what is defined in config.issueHistory', async () => {
           // Mock out if config was extended
           const mockExtendedConfig = {
             ...DEFAULT_CONFIG,
@@ -1824,7 +1824,86 @@ describe('flakybot', () => {
           getConfigWithDefaultStub.resolves(mockExtendedConfig);
           const payload = buildPayload('node_group_config.xml', 'nodejs-spanner');
         
-          // TODO: Fill out test 
+          // Closed yesterday. So, it should not be reopened.
+          const closedAt = new Date();
+          closedAt.setDate(closedAt.getDate() - 1);
+          const issues = [
+            {
+              title: formatTestCase({
+                package:
+                'github.com/GoogleCloudPlatform/nodejs-spanner',
+                testCase: 'TestSample',
+                passed: false,
+              }),
+              number: 17,
+              body: 'package failure 1',
+              state: 'closed',
+              closed_at: closedAt.toISOString(),
+              url: 'url',
+            },
+          ];
+
+          const scopes = [
+            nockIssues('nodejs-spanner', issues),
+            nockIssues('nodejs-spanner'),
+          ];
+
+          await probot.receive({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            name: 'pubsub.message' as any,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            payload: payload as any,
+            id: 'abc123',
+          });
+
+          scopes.forEach(s => s.done());
+        });
+        
+        // Config.issueHistory
+        // If issue is older than config.issueHistory, open new issue.
+        it('should open a new issue for any new closed existing issues older than what is defined in config.issueHistory', async () => {
+          // Mock out if config was extended
+          const mockExtendedConfig = {
+            ...DEFAULT_CONFIG,
+            issueHistory: 365
+          };
+          getConfigWithDefaultStub.resolves(mockExtendedConfig);
+          const payload = buildPayload('node_group_config.xml', 'nodejs-spanner');
+        
+          // Closed a year ago. It should be reopened.
+          const closedAt = new Date(new Date().setFullYear(new Date().getFullYear() + 1));
+          closedAt.setDate(closedAt.getDate() - 1);
+          
+          const issues = [
+            {
+              title: formatTestCase({
+                package:
+                'github.com/GoogleCloudPlatform/nodejs-spanner',
+                testCase: 'TestSample',
+                passed: false,
+              }),
+              number: 18,
+              body: 'package failure 1',
+              state: 'closed',
+              closed_at: closedAt.toISOString(),
+              url: 'url',
+            },
+          ];
+
+          const scopes = [
+            nockIssues('nodejs-spanner', issues),
+            nockIssues('nodejs-spanner'),
+          ];
+
+          await probot.receive({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            name: 'pubsub.message' as any,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            payload: payload as any,
+            id: 'abc123',
+          });
+
+          scopes.forEach(s => s.done());
         });
       });
     });
