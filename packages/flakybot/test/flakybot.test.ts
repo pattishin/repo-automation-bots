@@ -56,6 +56,7 @@ function buildPayload(inputFixture: string, repo: string) {
 
 function nockIssues(repo: string, issues: Array<{}> = []) {
   return nock('https://api.github.com')
+    .persist()
     .get(
       `/repos/GoogleCloudPlatform/${repo}/issues?per_page=100&labels=flakybot%3A%20issue&state=all`
     )
@@ -64,12 +65,14 @@ function nockIssues(repo: string, issues: Array<{}> = []) {
 
 function nockGetIssue(repo: string, issueNumber: number, issue: {}) {
   return nock('https://api.github.com')
+    .persist()
     .get(`/repos/GoogleCloudPlatform/${repo}/issues/${issueNumber}`)
     .reply(200, issue);
 }
 
 function nockNewIssue(repo: string) {
   return nock('https://api.github.com')
+    .persist()
     .post(`/repos/GoogleCloudPlatform/${repo}/issues`, body => {
       snapshot(body);
       return true;
@@ -83,12 +86,14 @@ function nockGetIssueComments(
   comments: Array<{}> = []
 ) {
   return nock('https://api.github.com')
+    .persist()
     .get(`/repos/GoogleCloudPlatform/${repo}/issues/${issueNumber}/comments`)
     .reply(200, comments);
 }
 
 function nockIssueComment(repo: string, issueNumber: number) {
   return nock('https://api.github.com')
+    .persist()
     .post(
       `/repos/GoogleCloudPlatform/${repo}/issues/${issueNumber}/comments`,
       body => {
@@ -101,7 +106,18 @@ function nockIssueComment(repo: string, issueNumber: number) {
 
 function nockIssuePatch(repo: string, issueNumber: number) {
   return nock('https://api.github.com')
+    .persist()
     .patch(`/repos/GoogleCloudPlatform/${repo}/issues/${issueNumber}`, body => {
+      snapshot(body);
+      return true;
+    })
+    .reply(200);
+}
+
+function nockLockDelete(repo: string, issueNumber: number) {
+  return nock('https://api.github.com')
+    .persist()
+    .delete(`/repos/GoogleCloudPlatform/${repo}/issues/${issueNumber}/lock`, body => {
       snapshot(body);
       return true;
     })
@@ -110,6 +126,7 @@ function nockIssuePatch(repo: string, issueNumber: number) {
 
 function nockRepo(repo: string, archived: boolean) {
   return nock('https://api.github.com')
+    .persist()
     .get(`/repos/GoogleCloudPlatform/${repo}`)
     .reply(200, {
       archived,
@@ -140,6 +157,8 @@ describe('flakybot', () => {
   });
 
   afterEach(() => {
+    nock.isDone();
+    nock.cleanAll();
     sandbox.restore();
   });
 
@@ -1289,7 +1308,6 @@ describe('flakybot', () => {
         const scopes = [
           nockIssues('golang-samples', issues),
           nockNewIssue('golang-samples'),
-          nockNewIssue('golang-samples'),
         ];
 
         await probot.receive({
@@ -1320,36 +1338,39 @@ describe('flakybot', () => {
           passed: false,
         });
 
+        const issues = [
+          {
+            title,
+            number: 16,
+            body: 'Failure!',
+            state: 'open',
+          },
+          {
+            title,
+            number: 17,
+            body: 'Failure!',
+            labels: [{name: 'flakybot: flaky'}],
+            state: 'open',
+          },
+          {
+            title: title2,
+            number: 18,
+            body: 'Failure!',
+            state: 'open',
+          },
+          {
+            title: title2,
+            number: 19,
+            body: 'Failure!',
+            labels: [{name: 'flakybot: flaky'}],
+            state: 'open',
+          },
+        ];
+
         const scopes = [
-          nockIssues('golang-samples', [
-            {
-              title,
-              number: 16,
-              body: 'Failure!',
-              state: 'open',
-            },
-            {
-              title,
-              number: 17,
-              body: 'Failure!',
-              labels: [{name: 'flakybot: flaky'}],
-              state: 'open',
-            },
-            {
-              title: title2,
-              number: 18,
-              body: 'Failure!',
-              state: 'open',
-            },
-            {
-              title: title2,
-              number: 19,
-              body: 'Failure!',
-              labels: [{name: 'flakybot: flaky'}],
-              state: 'open',
-            },
-          ]),
+          nockIssues('golang-samples', issues),
           nockIssueComment('golang-samples', 18),
+          nockGetIssueComments('golang-samples', 18),
           nockIssuePatch('golang-samples', 18),
           nockIssues('golang-samples'), // Real response would include all issues again.
         ];
@@ -1666,31 +1687,72 @@ describe('flakybot', () => {
         
         // Config.minIssuesToGroup (need clarification)
         // Minimize issues to a group in order to dedupe similar errors and reduce flakybot notifications
-        it('should change the number of issues per group if config.minIssuesToGroup has been defined.', async () => {
+        it('should create group issue if config.minIssuesToGroup has been defined and less than failures.', async () => {
           // Mock out if config was extended
           const mockExtendedConfig = {
             ...DEFAULT_CONFIG,
             minIssuesToGroup: 1
           };
           getConfigWithDefaultStub.resolves(mockExtendedConfig);
-          const payload = buildPayload('node_group_test.xml', 'nodejs-spanner');
-
-          const issues = 
-            [{
-              title: flakybot.formatTestCase({
-                passed: false,
-                package: 'Spanner',
-                testCase: 'many tests failed'
-              }),
-              number: 1,
-              body: 'Failed',
-              state: 'open',
-              url: 'url',
-            }];
+          const payload = buildPayload('node_group_config_single.xml', 'nodejs-spanner');
 
           const scopes = [
-            nockIssues('nodejs-spanner', issues),
+            nockIssues('nodejs-spanner', [
+              {
+                title: flakybot.formatTestCase({
+                  passed: false,
+                  package: 'Spanner',
+                  testCase: 'single package failure',
+                }),
+                number: 11,
+                body: 'Failed',
+                state: 'open,',
+                url: 'url',
+              },
+            ]),
             nockNewIssue('nodejs-spanner'),
+          ];
+
+          await probot.receive({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            name: 'pubsub.message' as any,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            payload: payload as any,
+            id: 'abc123',
+          });
+
+          scopes.forEach(s => s.done());
+        });
+        
+        // Config.minIssuesToGroup (need clarification)
+        // Minimize issues to a group in order to dedupe similar errors and reduce flakybot notifications
+        it('should create comment for existing group if config.minIssuesToGroup has been defined and less than failures.', async () => {
+          // Mock out if config was extended
+          const mockExtendedConfig = {
+            ...DEFAULT_CONFIG,
+            minIssuesToGroup: 1
+          };
+          getConfigWithDefaultStub.resolves(mockExtendedConfig);
+          const payload = buildPayload('node_group_config.xml', 'nodejs-spanner');
+
+          const scopes = [
+            nockIssues('nodejs-spanner', [
+              {
+                title: flakybot.formatTestCase({
+                  passed: false,
+                  package: 'Spanner',
+                  testCase: 'package failure 1',
+                }),
+                number: 9,
+                body: 'Failed',
+                state: 'open,',
+                url: 'url',
+              },
+              groupedIssue,
+            ]),
+            nockGetIssue('nodejs-spanner', 10, groupedIssue),
+            nockIssueComment('nodejs-spanner', 10),
+            nockGetIssueComments('nodejs-spanner', 10),
           ];
 
           await probot.receive({
@@ -1707,16 +1769,47 @@ describe('flakybot', () => {
         // Config.reopenLockedIssue
         // if reopen a locked issue is false, proceed with normal 
         // behavior to create new issue. Else we reopen existing issue.
-        it('should reopen a previously locked issue if config.reopenLockedIssue is declared', () => {
+        it('should reopen a previously locked issue if config.reopenLockedIssue is declared', async () => {
           // Mock out if config was extended
           const mockExtendedConfig = {
             ...DEFAULT_CONFIG,
             reopenLockedIssue: true
           };
           getConfigWithDefaultStub.resolves(mockExtendedConfig);
-          const payload = buildPayload('node_group_test.xml', 'nodejs-spanner');
-        
-          // TODO: Fill out test 
+          const payload = buildPayload('node_group_config.xml', 'nodejs-spanner');
+
+          const issues = [
+              {
+                title: flakybot.formatTestCase({
+                  passed: false,
+                  package: 'Spanner',
+                  testCase: 'package failure 1',
+                }),
+                number: 9,
+                locked: true,
+                body: 'Failed',
+                state: 'closed',
+                url: 'url',
+              },
+            ];
+
+          const scopes = [
+            nockIssues('nodejs-spanner', issues),
+            nockGetIssue('nodejs-spanner', 9, issues[0]),
+            nockLockDelete('nodejs-spanner', 9),
+            nockIssueComment('nodejs-spanner', 9),
+            nockIssuePatch('nodejs-spanner', 9),
+            nockNewIssue('nodejs-spanner'),
+          ]; 
+          await probot.receive({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            name: 'pubsub.message' as any,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            payload: payload as any,
+            id: 'abc123',
+          });
+          
+          scopes.forEach(s => s.done());
         });
 
 
@@ -1729,7 +1822,7 @@ describe('flakybot', () => {
             issueHistory: 365
           };
           getConfigWithDefaultStub.resolves(mockExtendedConfig);
-          const payload = buildPayload('node_group_test.xml', 'nodejs-spanner');
+          const payload = buildPayload('node_group_config.xml', 'nodejs-spanner');
         
           // TODO: Fill out test 
         });
