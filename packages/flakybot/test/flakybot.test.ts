@@ -1372,7 +1372,6 @@ describe('flakybot', () => {
           nockIssueComment('golang-samples', 18),
           nockGetIssueComments('golang-samples', 18),
           nockIssuePatch('golang-samples', 18),
-          nockIssues('golang-samples'), // Real response would include all issues again.
         ];
 
         await probot.receive({
@@ -1685,9 +1684,13 @@ describe('flakybot', () => {
           scopes.forEach(s => s.done());
         });
         
-        // Config.minIssuesToGroup (need clarification)
-        // Minimize issues to a group in order to dedupe similar errors and reduce flakybot notifications
-        it('should create group issue if config.minIssuesToGroup has been defined and less than failures.', async () => {
+        /** 
+         * ------------------------------
+         * Config.minIssuesToGroup flag
+         * ------------------------------
+         *  If flag has been set and failures meets threshold set by minIssuesToGroup flag
+         */
+        it('should create new issue failure length meets config.minIssuesToGroup threshold.', async () => {
           // Mock out if config was extended
           const mockExtendedConfig = {
             ...DEFAULT_CONFIG,
@@ -1723,53 +1726,15 @@ describe('flakybot', () => {
 
           scopes.forEach(s => s.done());
         });
-        
-        // Config.minIssuesToGroup (need clarification)
-        // Minimize issues to a group in order to dedupe similar errors and reduce flakybot notifications
-        it('should create comment for existing group if config.minIssuesToGroup has been defined and less than failures.', async () => {
-          // Mock out if config was extended
-          const mockExtendedConfig = {
-            ...DEFAULT_CONFIG,
-            minIssuesToGroup: 1
-          };
-          getConfigWithDefaultStub.resolves(mockExtendedConfig);
-          const payload = buildPayload('node_group_config.xml', 'nodejs-spanner');
 
-          const scopes = [
-            nockIssues('nodejs-spanner', [
-              {
-                title: flakybot.formatTestCase({
-                  passed: false,
-                  package: 'Spanner',
-                  testCase: 'package failure 1',
-                }),
-                number: 9,
-                body: 'Failed',
-                state: 'open,',
-                url: 'url',
-              },
-              groupedIssue,
-            ]),
-            nockGetIssue('nodejs-spanner', 10, groupedIssue),
-            nockIssueComment('nodejs-spanner', 10),
-            nockGetIssueComments('nodejs-spanner', 10),
-          ];
-
-          await probot.receive({
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            name: 'pubsub.message' as any,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            payload: payload as any,
-            id: 'abc123',
-          });
-
-          scopes.forEach(s => s.done());
-        });
-
-        // Config.reopenLockedIssue
-        // if reopen a locked issue is false, proceed with normal 
-        // behavior to create new issue. Else we reopen existing issue.
-        it('should reopen a previously locked issue if config.reopenLockedIssue is declared', async () => {
+        /** 
+         * ------------------------------
+         * Config.reopenLockedIssue
+         * ------------------------------
+         * If reopen a locked issue is false, proceed with normal behavior to create new issue.
+         * Else we reopen existing issue.
+         */
+        it('should reopen a previously locked issue if config.reopenLockedIssue is true.', async () => {
           // Mock out if config was extended
           const mockExtendedConfig = {
             ...DEFAULT_CONFIG,
@@ -1799,7 +1764,7 @@ describe('flakybot', () => {
             nockLockDelete('nodejs-spanner', 9),
             nockIssueComment('nodejs-spanner', 9),
             nockIssuePatch('nodejs-spanner', 9),
-            nockNewIssue('nodejs-spanner'),
+            nockNewIssue('nodejs-spanner'), // Update to check if unlocked, requires updated snapshot
           ]; 
           await probot.receive({
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1813,9 +1778,13 @@ describe('flakybot', () => {
         });
 
 
-        // Config.issueHistory
-        // If issue is less than config.issueHistory, do not open new issue.
-        it('should not open a new issue for any new closed existing issues older than what is defined in config.issueHistory', async () => {
+        /** 
+         * ------------------------------
+         * Config.issueHistory flag
+         * ------------------------------
+         * If flag has been set, existing issue should be marked flaky if within day range set by config.issueHistory
+         */
+        it('should mark issue flaky if failure is within day range set by config.issueHistory.', async () => {
           // Mock out if config was extended
           const mockExtendedConfig = {
             ...DEFAULT_CONFIG,
@@ -1861,9 +1830,13 @@ describe('flakybot', () => {
           scopes.forEach(s => s.done());
         });
         
-        // Config.issueHistory
-        // If issue is older than config.issueHistory, open new issue.
-        it('should open a new issue for any new closed existing issues older than what is defined in config.issueHistory', async () => {
+        /** 
+         * ------------------------------
+         * Config.issueHistory flag
+         * ------------------------------
+         * If flag has been set, new issue should be created if failure is past day range set by config.issueHistory
+         */
+        it('should open a new issue for any new failures that have past the day range defined in config.issueHistory', async () => {
           // Mock out if config was extended
           const mockExtendedConfig = {
             ...DEFAULT_CONFIG,
