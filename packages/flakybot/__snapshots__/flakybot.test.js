@@ -294,8 +294,8 @@ exports['flakybot app xunitXML Grouped issues should reopen a previously locked 
 }
 
 exports['flakybot app xunitXML Grouped issues should create group issue if config.minIssuesToGroup has been defined and less than failures. 1'] = {
-  "title": "Spanner: many tests failed",
-  "body": "Many tests failed at the same time in this package.\n\n* I will close this issue when there are no more failures in this package _and_\n  there is at least one pass.\n* No new issues will be filed for this package until this issue is closed.\n* If there are already issues for individual test cases, I will close them when\n  the corresponding test passes. You can close them earlier, if you prefer, and\n  I won't reopen them while this issue is still open.\n\nHere are the tests that failed:\n* single package failure (#11)\n\n\n-----\ncommit: 123\nbuildURL: http://example.com\nstatus: failed",
+  "title": "github.com/GoogleCloudPlatform/nodejs-spanner: many tests failed",
+  "body": "Many tests failed at the same time in this package.\n\n* I will close this issue when there are no more failures in this package _and_\n  there is at least one pass.\n* No new issues will be filed for this package until this issue is closed.\n* If there are already issues for individual test cases, I will close them when\n  the corresponding test passes. You can close them earlier, if you prefer, and\n  I won't reopen them while this issue is still open.\n\nHere are the tests that failed:\n* TestSample\n\n\n-----\ncommit: 123\nbuildURL: http://example.com\nstatus: failed",
   "labels": [
     "type: bug",
     "priority: p1",
@@ -331,4 +331,20 @@ exports['flakybot app xunitXML closes a duplicate issue 3'] = {
 
 exports['flakybot app xunitXML closes a duplicate issue 4'] = {
   "state": "closed"
+}
+
+exports['flakybot app xunitXML Grouped issues should not open a new issue for any new closed existing issues older than what is defined in config.issueHistory 1'] = {
+  "state": "open"
+}
+
+exports['flakybot app xunitXML Grouped issues should not open a new issue for any new closed existing issues older than what is defined in config.issueHistory 2'] = {
+  "body": "Looks like this issue is flaky. :worried:\n\nI'm going to leave this open and stop commenting.\n\nA human should fix and close this.\n\n---\n\ncommit: 123\nbuildURL: http://example.com\nstatus: failed"
+}
+
+exports['flakybot app xunitXML Grouped issues should open a new issue for any new closed existing issues older than what is defined in config.issueHistory 1'] = {
+  "state": "open"
+}
+
+exports['flakybot app xunitXML Grouped issues should open a new issue for any new closed existing issues older than what is defined in config.issueHistory 2'] = {
+  "body": "Looks like this issue is flaky. :worried:\n\nI'm going to leave this open and stop commenting.\n\nA human should fix and close this.\n\n---\n\ncommit: 123\nbuildURL: http://example.com\nstatus: failed"
 }

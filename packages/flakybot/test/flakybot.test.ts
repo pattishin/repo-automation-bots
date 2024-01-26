@@ -1822,7 +1822,7 @@ describe('flakybot', () => {
             issueHistory: 365
           };
           getConfigWithDefaultStub.resolves(mockExtendedConfig);
-          const payload = buildPayload('node_group_config.xml', 'nodejs-spanner');
+          const payload = buildPayload('node_group_config_single.xml', 'nodejs-spanner');
         
           // Closed yesterday. So, it should not be reopened.
           const closedAt = new Date();
@@ -1836,7 +1836,7 @@ describe('flakybot', () => {
                 passed: false,
               }),
               number: 17,
-              body: 'package failure 1',
+              body: 'expected',
               state: 'closed',
               closed_at: closedAt.toISOString(),
               url: 'url',
@@ -1845,7 +1845,9 @@ describe('flakybot', () => {
 
           const scopes = [
             nockIssues('nodejs-spanner', issues),
-            nockIssues('nodejs-spanner'),
+            nockGetIssue('nodejs-spanner', 17, issues[0]),
+            nockIssuePatch('nodejs-spanner', 17),
+            nockIssueComment('nodejs-spanner', 17),
           ];
 
           await probot.receive({
@@ -1868,7 +1870,7 @@ describe('flakybot', () => {
             issueHistory: 365
           };
           getConfigWithDefaultStub.resolves(mockExtendedConfig);
-          const payload = buildPayload('node_group_config.xml', 'nodejs-spanner');
+          const payload = buildPayload('node_group_config_single.xml', 'nodejs-spanner');
         
           // Closed a year ago. It should be reopened.
           const closedAt = new Date(new Date().setFullYear(new Date().getFullYear() + 1));
@@ -1883,7 +1885,7 @@ describe('flakybot', () => {
                 passed: false,
               }),
               number: 18,
-              body: 'package failure 1',
+              body: 'expected',
               state: 'closed',
               closed_at: closedAt.toISOString(),
               url: 'url',
@@ -1892,7 +1894,9 @@ describe('flakybot', () => {
 
           const scopes = [
             nockIssues('nodejs-spanner', issues),
-            nockIssues('nodejs-spanner'),
+            nockGetIssue('nodejs-spanner', 18, issues[0]),
+            nockIssuePatch('nodejs-spanner', 18),
+            nockIssueComment('nodejs-spanner', 18),
           ];
 
           await probot.receive({
