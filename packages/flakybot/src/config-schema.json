@@ -8,6 +8,18 @@
         "issuePriority": {
             "description": "The default priority for flakybot issues",
             "type": "string"
+        },
+        "minIssuesToGroup": {
+            "description": "Minimum number of issues in a package to group into a single issue",
+            "type": "number"
+        },
+        "reopenLockedIssue": {
+            "description": "Should the bot reopen previously locked issues",
+            "type": "boolean"
+        },
+        "issueHistory": {
+            "description": "The bot will reopen issues closed within the last N number of days.",
+            "type": "number"
         }
     }
 }
